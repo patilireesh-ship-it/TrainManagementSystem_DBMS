@@ -1,15 +1,8 @@
--- ============================================================
--- TRAIN MANAGEMENT SYSTEM — DATABASE CREATION
--- Based on the ER Diagram
--- ============================================================
-
-DROP DATABASE IF EXISTS TrainManagementSystem;
+DROP DATABASE IF EXISTS TrainManagementSystem
 CREATE DATABASE TrainManagementSystem;
 USE TrainManagementSystem;
 
--- ============================================================
--- 1. TRAIN — Strong Entity
--- ============================================================
+-- 1. TRAIN
 CREATE TABLE TRAIN (
     Train_No      INT          PRIMARY KEY,
     Train_Name    VARCHAR(100) NOT NULL,
@@ -17,9 +10,8 @@ CREATE TABLE TRAIN (
     Capacity      INT          NOT NULL CHECK (Capacity > 0)
 );
 
--- ============================================================
--- 2. STATION — Strong Entity
--- ============================================================
+
+-- 2. STATION 
 CREATE TABLE STATION (
     Station_ID    INT          PRIMARY KEY AUTO_INCREMENT,
     Station_Name  VARCHAR(100) NOT NULL,
@@ -27,10 +19,7 @@ CREATE TABLE STATION (
     Platform_No   INT          NOT NULL CHECK (Platform_No > 0)
 );
 
--- ============================================================
--- 3. SCHEDULE — Weak Entity (depends on TRAIN via HAS)
---    Relationship: TRAIN 1 ——— HAS ——— N SCHEDULE
--- ============================================================
+-- 3. SCHEDULE 
 CREATE TABLE SCHEDULE (
     Schedule_ID    INT          PRIMARY KEY AUTO_INCREMENT,
     Train_No       INT          NOT NULL,
@@ -41,10 +30,7 @@ CREATE TABLE SCHEDULE (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ============================================================
 -- 4. TRAIN_STOPS_AT — Junction table for N:M relationship
---    Relationship: TRAIN N ——— STOPS AT ——— M STATION
--- ============================================================
 CREATE TABLE TRAIN_STOPS_AT (
     Train_No      INT NOT NULL,
     Station_ID    INT NOT NULL,
@@ -57,11 +43,11 @@ CREATE TABLE TRAIN_STOPS_AT (
     FOREIGN KEY (Station_ID) REFERENCES STATION(Station_ID)
         ON DELETE CASCADE ON UPDATE CASCADE
 );
--- ============================================================
+
+
 -- 5. TIMETABLE_EVENT — Aggregation of TRAIN, STATION, SCHEDULE
 --    Links BOOKING and EMPLOYEE to the combined context of
 --    which train, at which station, on which schedule
--- ============================================================
 CREATE TABLE TIMETABLE_EVENT (
     Event_ID      VARCHAR(20)  PRIMARY KEY,
     Train_No      INT          NOT NULL,
@@ -75,9 +61,8 @@ CREATE TABLE TIMETABLE_EVENT (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ============================================================
--- 6. EMPLOYEE — Strong Entity (supertype for DRIVER, MAINTENANCE_STAFF & TC)
--- ============================================================
+
+-- 6. EMPLOYEE 
 CREATE TABLE EMPLOYEE (
     Employee_ID   INT            PRIMARY KEY AUTO_INCREMENT,
     Name          VARCHAR(100)   NOT NULL,
@@ -89,9 +74,7 @@ CREATE TABLE EMPLOYEE (
         ON DELETE SET NULL ON UPDATE CASCADE
 );
 
--- ============================================================
 -- 6. DRIVER — ISA subtype of EMPLOYEE
--- ============================================================
 CREATE TABLE DRIVER (
     Employee_ID   INT          PRIMARY KEY,
     License_No    VARCHAR(50)  NOT NULL UNIQUE,
@@ -99,9 +82,7 @@ CREATE TABLE DRIVER (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ============================================================
--- 7. TC (Ticket Collector) — ISA subtype of EMPLOYEE
--- ============================================================
+-- 7. TC (Ticket Collector)
 CREATE TABLE TC (
     Employee_ID    INT          PRIMARY KEY,
     Badge_No       VARCHAR(50)  NOT NULL UNIQUE,
@@ -110,22 +91,16 @@ CREATE TABLE TC (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ============================================================
--- 8. MAINTENANCE_STAFF — ISA subtype of EMPLOYEE
--- ============================================================
+-- 8. MAINTENANCE_STAFF 
 CREATE TABLE MAINTENANCE_STAFF (
     Employee_ID    INT          PRIMARY KEY,
-    Shift_Type     VARCHAR(50)  NOT NULL,          -- Day, Night, Rotational
-    Trade_Skill    VARCHAR(100) NOT NULL,          -- Electrical, Mechanical, etc.
+    Shift_Type     VARCHAR(50)  NOT NULL,          
+    Trade_Skill    VARCHAR(100) NOT NULL,          
     FOREIGN KEY (Employee_ID) REFERENCES EMPLOYEE(Employee_ID)
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ============================================================
--- 9. COACH_SEAT — Weak Entity (depends on TRAIN via CONTAINS)
---    Relationship: TRAIN 1 ——— CONTAINS ——— N COACH_SEAT
---    Seat_ID is derived from Coach_No (shown as dashed oval)
--- ============================================================
+-- 9. COACH_SEAT 
 CREATE TABLE COACH_SEAT (
     Seat_ID       INT          PRIMARY KEY AUTO_INCREMENT,
     Train_No      INT          NOT NULL,
@@ -137,9 +112,7 @@ CREATE TABLE COACH_SEAT (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ============================================================
--- 10. PASSENGER — Strong Entity
--- ============================================================
+-- 10. PASSENGER 
 CREATE TABLE PASSENGER (
     Passenger_ID  INT          PRIMARY KEY AUTO_INCREMENT,
     Name          VARCHAR(100) NOT NULL,
@@ -149,14 +122,8 @@ CREATE TABLE PASSENGER (
     Aadhar_no     VARCHAR(12)  NOT NULL UNIQUE
 );
 
--- ============================================================
--- 11. BOOKING — Strong Entity
---     Relationships:
---       PASSENGER 1 ——— MAKES ——— N BOOKING
---       BOOKING   N ——— STARTS AT ——— 1 STATION
---       BOOKING   N ——— ENDS AT   ——— 1 STATION
---       BOOKING   N ——— BOOKED ON ——— 1 TIMETABLE_EVENT (aggregation)
--- ============================================================
+
+-- 11. BOOKING 
 CREATE TABLE BOOKING (
     Booking_ID     INT          PRIMARY KEY AUTO_INCREMENT,
     Passenger_ID   INT          NOT NULL,
@@ -177,10 +144,8 @@ CREATE TABLE BOOKING (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ============================================================
+
 -- 12. BOOKING_SEAT — Junction table for N:M relationship
---     Relationship: COACH_SEAT N ——— RESERVES ——— M BOOKING
--- ============================================================
 CREATE TABLE BOOKING_SEAT (
     Booking_ID    INT NOT NULL,
     Seat_ID       INT NOT NULL,
@@ -191,10 +156,8 @@ CREATE TABLE BOOKING_SEAT (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ============================================================
+
 -- 13. PAYMENT — Strong Entity
---     Relationship: BOOKING 1 ——— HAS ——— 1 PAYMENT
--- ============================================================
 CREATE TABLE PAYMENT (
     Payment_ID     INT            PRIMARY KEY AUTO_INCREMENT,
     Booking_ID     INT            NOT NULL UNIQUE,   -- 1:1 with BOOKING
