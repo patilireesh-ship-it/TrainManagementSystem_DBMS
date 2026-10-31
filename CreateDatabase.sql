@@ -18,7 +18,9 @@ CREATE TABLE STATION (
     City          VARCHAR(100) NOT NULL,
     Platform_No   INT          NOT NULL CHECK (Platform_No > 0)
 );
+SHOW TRIGGERS
 
+  
 -- 3. SCHEDULE 
 CREATE TABLE SCHEDULE (
     Schedule_ID    INT          PRIMARY KEY AUTO_INCREMENT,
@@ -168,4 +170,158 @@ CREATE TABLE PAYMENT (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-SELECT 'All 14 tables created successfully!' AS Result;
+-- 14. AUDIT_LOG — Logs database trigger actions
+CREATE TABLE AUDIT_LOG (
+    Log_ID        INT           PRIMARY KEY AUTO_INCREMENT,
+    Action_Type   VARCHAR(50)   NOT NULL,
+    Table_Name    VARCHAR(50)   NOT NULL,
+    Record_ID     INT,
+    Details       TEXT,
+    Created_At    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- =======================================================
+-- VIEWS
+-- =======================================================
+
+-- View 1: Complete Booking Details (combines BOOKING, PASSENGER, TRAIN, STATIONS, SEAT, PAYMENT)
+CREATE OR REPLACE VIEW view_booking_details AS
+SELECT 
+    b.Booking_ID,
+    p.Passenger_ID,
+    p.Name AS Passenger_Name,
+    p.Phone_no,
+    p.Age,
+    p.Gender,
+    t.Train_No,
+    t.Train_Name,
+    s1.Station_Name AS Origin,
+    s2.Station_Name AS Destination,
+    b.Journey_Date,
+    b.Booking_Date,
+    b.Class,
+    b.Status AS Booking_Status,
+    cs.Coach_No,
+    cs.Seat_No,
+    pay.Payment_ID,
+    pay.Amount,
+    pay.Payment_Status
+FROM BOOKING b
+JOIN PASSENGER p ON b.Passenger_ID = p.Passenger_ID
+JOIN TIMETABLE_EVENT te ON b.Event_ID = te.Event_ID
+JOIN TRAIN t ON te.Train_No = t.Train_No
+JOIN STATION s1 ON b.Start_Station = s1.Station_ID
+JOIN STATION s2 ON b.End_Station = s2.Station_ID
+LEFT JOIN BOOKING_SEAT bs ON b.Booking_ID = bs.Booking_ID
+LEFT JOIN COACH_SEAT cs ON bs.Seat_ID = cs.Seat_ID
+LEFT JOIN PAYMENT pay ON b.Booking_ID = pay.Booking_ID;
+
+-- View 2: Employee Summary with polymorphic roles (Driver, TC, Maintenance)
+CREATE OR REPLACE VIEW view_employee_summary AS
+SELECT 
+    e.Employee_ID,
+    e.Name,
+    e.Salary,
+    e.Phone_no,
+    CASE
+        WHEN d.Employee_ID IS NOT NULL THEN 'Driver'
+        WHEN tc.Employee_ID IS NOT NULL THEN 'Ticket Collector'
+        WHEN ms.Employee_ID IS NOT NULL THEN 'Maintenance Staff'
+        ELSE 'General Staff'
+    END AS Role,
+    d.License_No,
+    tc.Badge_No,
+    tc.Assigned_Zone,
+    ms.Shift_Type,
+    ms.Trade_Skill,
+    t.Train_No,
+    t.Train_Name,
+    s.Station_Name AS Station
+FROM EMPLOYEE e
+LEFT JOIN DRIVER d ON e.Employee_ID = d.Employee_ID
+LEFT JOIN TC tc ON e.Employee_ID = tc.Employee_ID
+LEFT JOIN MAINTENANCE_STAFF ms ON e.Employee_ID = ms.Employee_ID
+LEFT JOIN TIMETABLE_EVENT te ON e.Event_ID = te.Event_ID
+LEFT JOIN TRAIN t ON te.Train_No = t.Train_No
+LEFT JOIN STATION s ON te.Station_ID = s.Station_ID;
+
+-- View 3: Train Seat Occupancy and Availability
+CREATE OR REPLACE VIEW view_train_occupancy AS
+SELECT 
+    t.Train_No,
+    t.Train_Name,
+    t.Train_Type,
+    t.Capacity,
+    COUNT(DISTINCT cs.Seat_ID) AS Total_Configured_Seats,
+    COUNT(DISTINCT bs.Seat_ID) AS Booked_Seats,
+    (COUNT(DISTINCT cs.Seat_ID) - COUNT(DISTINCT bs.Seat_ID)) AS Available_Seats
+FROM TRAIN t
+LEFT JOIN COACH_SEAT cs ON t.Train_No = cs.Train_No
+LEFT JOIN BOOKING_SEAT bs ON cs.Seat_ID = bs.Seat_ID
+GROUP BY t.Train_No, t.Train_Name, t.Train_Type, t.Capacity;
+
+-- View 4: Route Schedules with station order and timings
+CREATE OR REPLACE VIEW view_route_schedule AS
+SELECT 
+    t.Train_No,
+    t.Train_Name,
+    tsa.Stop_Order,
+    s.Station_Name,
+    s.City,
+    s.Platform_No,
+    tsa.Arrival_Time,
+    tsa.Departure_Time
+FROM TRAIN_STOPS_AT tsa
+JOIN TRAIN t ON tsa.Train_No = t.Train_No
+JOIN STATION s ON tsa.Station_ID = s.Station_ID
+ORDER BY t.Train_No, tsa.Stop_Order;
+
+
+-- =======================================================
+-- TRIGGERS
+-- =======================================================
+
+-- Trigger 1: AFTER INSERT ON BOOKING — logs created booking into AUDIT_LOG
+DELIMITER $$
+CREATE TRIGGER trg_after_booking_insert
+AFTER INSERT ON BOOKING
+FOR EACH ROW
+BEGIN
+    INSERT INTO AUDIT_LOG (Action_Type, Table_Name, Record_ID, Details)
+    VALUES ('BOOKING_CREATED', 'BOOKING', NEW.Booking_ID, 
+            CONCAT('Passenger ID ', NEW.Passenger_ID, ' booked class ', NEW.Class, ' on event ', NEW.Event_ID));
+END$$
+
+-- Trigger 2: AFTER DELETE ON BOOKING — logs deleted/cancelled booking into AUDIT_LOG
+CREATE TRIGGER trg_after_booking_delete
+AFTER DELETE ON BOOKING
+FOR EACH ROW
+BEGIN
+    INSERT INTO AUDIT_LOG (Action_Type, Table_Name, Record_ID, Details)
+    VALUES ('BOOKING_DELETED', 'BOOKING', OLD.Booking_ID, 
+            CONCAT('Passenger ID ', OLD.Passenger_ID, ' booking was cancelled/deleted'));
+END$$
+
+-- Trigger 3: BEFORE INSERT ON PAYMENT — validates amount > 0
+CREATE TRIGGER trg_before_payment_insert
+BEFORE INSERT ON PAYMENT
+FOR EACH ROW
+BEGIN
+    IF NEW.Amount <= 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Payment amount must be greater than zero';
+    END IF;
+END$$
+
+-- Trigger 4: AFTER INSERT ON PAYMENT — logs payment record into AUDIT_LOG
+CREATE TRIGGER trg_after_payment_insert
+AFTER INSERT ON PAYMENT
+FOR EACH ROW
+BEGIN
+    INSERT INTO AUDIT_LOG (Action_Type, Table_Name, Record_ID, Details)
+    VALUES ('PAYMENT_RECORDED', 'PAYMENT', NEW.Payment_ID, 
+            CONCAT('Amount: ₹', NEW.Amount, ', Status: ', NEW.Payment_Status, ', Booking ID: ', NEW.Booking_ID));
+END$$
+DELIMITER ;
+
+SELECT 'All tables, views, and triggers created successfully!' AS Result;

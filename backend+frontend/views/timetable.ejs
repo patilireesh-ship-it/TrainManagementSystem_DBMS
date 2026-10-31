@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrainBook — Station Timetable</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      TrainBook
+    </a>
+    <nav class="nav">
+      <a href="/user">Book Tickets</a>
+      <a href="/timetable" class="active">Timetable</a>
+      <a href="/bookings">Live Database</a>
+      <a href="/employee">Employee Portal</a>
+    </nav>
+  </header>
+
+  <section class="timetable-section">
+    <div class="station-selector">
+      <div class="form-group" style="flex:2;">
+        <label>Select Station</label>
+        <select id="stationSelect"><option value="">Choose a station</option></select>
+      </div>
+      <div class="station-info-card" id="stationInfo" style="display:none;">
+        <div class="stat"><div class="stat-value" id="stationCity">-</div><div class="stat-label">City</div></div>
+        <div class="stat"><div class="stat-value" id="stationPlatforms">-</div><div class="stat-label">Platforms</div></div>
+      </div>
+    </div>
+
+    <div id="boardContainer" style="display:none;">
+      <div class="board">
+        <div class="board-tabs">
+          <div class="board-tab active" data-tab="departures">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            Departures
+          </div>
+          <div class="board-tab" data-tab="arrivals">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
+            Arrivals
+          </div>
+        </div>
+        <div id="departuresTab">
+          <table class="board-table">
+            <thead><tr><th>Train No</th><th>Train Name</th><th>Type</th><th>Departure</th><th>Destination</th><th>Platform</th><th>Status</th></tr></thead>
+            <tbody id="departuresBody"></tbody>
+          </table>
+        </div>
+        <div id="arrivalsTab" style="display:none;">
+          <table class="board-table">
+            <thead><tr><th>Train No</th><th>Train Name</th><th>Type</th><th>Arrival</th><th>Origin</th><th>Platform</th><th>Status</th></tr></thead>
+            <tbody id="arrivalsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="no-results" id="noData" style="display:none;">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 0.75rem;display:block;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <h3>Select a station</h3>
+      <p>Pick a station from the dropdown to view its live timetable.</p>
+    </div>
+  </section>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    function showToast(msg, type='info') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = 'toast toast-' + type;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    function fmtTime(t) { return t ? t.substring(0,5) : '--:--'; }
+
+    function typeBadgeStyle(type) {
+      const colors = {
+        'Rajdhani':'#FFA586','Shatabdi':'#86EFAC','Superfast':'#93C5FD',
+        'Mail':'#E9D5FF','Duronto':'#FDE047','Express':'#FFA586','Semi-Highspeed':'#FFA586'
+      };
+      const c = colors[type] || '#94A3B8';
+      return 'background:' + c + '22;color:' + c + ';border:1px solid ' + c + '44;';
+    }
+
+    // Load stations
+    async function loadStations() {
+      try {
+        const res = await fetch('/api/stations');
+        const stations = await res.json();
+        const sel = document.getElementById('stationSelect');
+        stations.forEach(s => sel.add(new Option(s.Station_Name + ' (' + s.City + ')', s.Station_ID)));
+      } catch(e) { showToast('Failed to load stations','error'); }
+    }
+
+    // Fetch timetable
+    async function fetchTimetable(stationId) {
+      try {
+        const res = await fetch('/api/timetable/' + stationId);
+        const data = await res.json();
+
+        // Station info
+        document.getElementById('stationCity').textContent = data.station.City;
+        document.getElementById('stationPlatforms').textContent = data.station.Platform_No;
+        document.getElementById('stationInfo').style.display = 'flex';
+
+        // Departures
+        const depBody = document.getElementById('departuresBody');
+        const deps = data.departures || [];
+        if (deps.length === 0) {
+          depBody.innerHTML = '<tr><td colspan="7" style="text-align:center;opacity:0.5;padding:2rem;">No departures from this station</td></tr>';
+        } else {
+          depBody.innerHTML = deps.map(t =>
+            '<tr>' +
+            '<td><strong>' + t.Train_No + '</strong></td>' +
+            '<td>' + t.Train_Name + '<div class="origin-dest">→ ' + (t.final_station || '') + '</div></td>' +
+            '<td><span class="board-type-badge" style="' + typeBadgeStyle(t.Train_Type) + '">' + t.Train_Type + '</span></td>' +
+            '<td style="font-weight:700;font-size:1.1rem;">' + fmtTime(t.Departure_Time) + '</td>' +
+            '<td>' + (t.final_station || '-') + '</td>' +
+            '<td><span class="platform-badge">' + t.Platform_No + '</span></td>' +
+            '<td><span class="status-dot"></span>On Time</td>' +
+            '</tr>'
+          ).join('');
+        }
+
+        // Arrivals
+        const arrBody = document.getElementById('arrivalsBody');
+        const arrs = data.arrivals || [];
+        if (arrs.length === 0) {
+          arrBody.innerHTML = '<tr><td colspan="7" style="text-align:center;opacity:0.5;padding:2rem;">No arrivals at this station</td></tr>';
+        } else {
+          arrBody.innerHTML = arrs.map(t =>
+            '<tr>' +
+            '<td><strong>' + t.Train_No + '</strong></td>' +
+            '<td>' + t.Train_Name + '<div class="origin-dest">From ' + (t.origin_station || '') + '</div></td>' +
+            '<td><span class="board-type-badge" style="' + typeBadgeStyle(t.Train_Type) + '">' + t.Train_Type + '</span></td>' +
+            '<td style="font-weight:700;font-size:1.1rem;">' + fmtTime(t.Arrival_Time) + '</td>' +
+            '<td>' + (t.origin_station || '-') + '</td>' +
+            '<td><span class="platform-badge">' + t.Platform_No + '</span></td>' +
+            '<td><span class="status-dot"></span>On Time</td>' +
+            '</tr>'
+          ).join('');
+        }
+
+        document.getElementById('boardContainer').style.display = 'block';
+        document.getElementById('noData').style.display = 'none';
+      } catch(e) { showToast('Failed to load timetable','error'); }
+    }
+
+    // Tabs
+    document.querySelectorAll('.board-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.board-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const which = tab.dataset.tab;
+        document.getElementById('departuresTab').style.display = which === 'departures' ? 'block' : 'none';
+        document.getElementById('arrivalsTab').style.display = which === 'arrivals' ? 'block' : 'none';
+      });
+    });
+
+    // Station change
+    document.getElementById('stationSelect').addEventListener('change', e => {
+      if (e.target.value) fetchTimetable(e.target.value);
+    });
+
+    // Auto-refresh every 30s
+    setInterval(() => {
+      const v = document.getElementById('stationSelect').value;
+      if (v) fetchTimetable(v);
+    }, 30000);
+
+    loadStations();
+  </script>
+</body>
+</html>

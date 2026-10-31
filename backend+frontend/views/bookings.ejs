@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administrator Database Monitor — TrainBook</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <a href="/" class="logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      TrainBook
+    </a>
+    <nav class="nav">
+      <a href="/user">Book Tickets</a>
+      <a href="/timetable">Timetable</a>
+      <a href="/bookings" class="active">Live Database</a>
+      <a href="/employee">Employee Portal</a>
+    </nav>
+  </header>
+
+  <!-- Container -->
+  <div class="db-container">
+
+    <!-- 1. Administrator Verification Lock Screen -->
+    <div id="adminLockScreen" class="admin-auth-card">
+      <div class="admin-icon-circle">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--c-midnight)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h2>Administrator Verification</h2>
+      <p>This live database monitor contains sensitive passenger, booking, and payment records. Please verify administrator identity to proceed.</p>
+      
+      <div class="password-input-wrapper">
+        <input type="password" id="adminPasswordInput" placeholder="Enter Admin Password" autocomplete="off">
+      </div>
+      
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="verifyAdmin()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+        Unlock Database
+      </button>
+
+      <div id="authError" style="color:var(--red);font-size:0.85rem;margin-top:0.75rem;min-height:1.2rem;"></div>
+
+      <div class="admin-hint">
+        Default Password: <strong>1234</strong>
+      </div>
+    </div>
+
+    <!-- 2. Protected Dashboard Content (Hidden until verified) -->
+    <div id="adminDashboard" style="display:none;">
+      <div class="db-header">
+        <div>
+          <h1>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-midnight)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            Live Database Monitor
+          </h1>
+          <p style="color:var(--muted);font-size:0.85rem;margin-top:0.2rem;">Authenticated via SQL SHA2 cryptographic verification &middot; Tables: <code>BOOKING</code>, <code>PASSENGER</code>, <code>COACH_SEAT</code>, <code>PAYMENT</code></p>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+          <button class="btn" style="padding:0.45rem 0.85rem;font-size:0.82rem;background:#2E7D32;color:white;" onclick="addDemoData()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Add Demo Data
+          </button>
+          <button class="btn" style="padding:0.45rem 0.85rem;font-size:0.82rem;background:var(--red);color:white;" onclick="deleteAllBookings()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Delete All Bookings
+          </button>
+          <button class="btn btn-outline" style="padding:0.45rem 0.85rem;font-size:0.82rem;" onclick="fetchBookings()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh
+          </button>
+          <button class="btn btn-dark" style="padding:0.45rem 0.85rem;font-size:0.82rem;" onclick="lockDashboard()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Lock &amp; Exit
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="db-stats">
+        <div class="db-stat-card">
+          <div class="num" id="totalBookings">0</div>
+          <div class="label">Total Bookings</div>
+        </div>
+        <div class="db-stat-card">
+          <div class="num" id="confirmedBookings" style="color:#2E7D32;">0</div>
+          <div class="label">Confirmed Seats</div>
+        </div>
+        <div class="db-stat-card">
+          <div class="num" id="totalRevenue" style="color:var(--dark);">₹0</div>
+          <div class="label">Total Fare Collected</div>
+        </div>
+        <div class="db-stat-card">
+          <div class="num" id="latestBooking">#0</div>
+          <div class="label">Latest PNR</div>
+        </div>
+      </div>
+
+      <!-- SQL Passenger Search Toolbar -->
+      <div class="db-search-bar">
+        <div class="db-search-input-wrapper">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="passengerSearchInput" class="db-search-input" placeholder="Search passenger by name using SQL query (e.g. Aarav, Priya, Rohan)..." oninput="handleSearchInput()">
+        </div>
+        <div class="db-search-actions">
+          <button class="btn btn-outline" style="padding:0.5rem 0.9rem;font-size:0.82rem;" onclick="clearPassengerSearch()" id="clearSearchBtn" style="display:none;">
+            Clear
+          </button>
+          <span class="search-mode-pill" id="searchSqlPill">
+            SQL: WHERE p.Name LIKE ?
+          </span>
+        </div>
+      </div>
+
+      <!-- Bookings Table -->
+      <div class="db-table-card">
+        <div class="db-table-header">
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <h3 style="display:inline-flex;align-items:center;gap:0.4rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-midnight)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span id="tableTitleText">Recent Bookings &amp; Seat Allocations</span>
+            </h3>
+            <span class="refresh-badge" id="liveSyncBadge"><span class="pulse-dot"></span> Live Auto-Sync (3s)</span>
+          </div>
+          <span id="bookingCount" style="font-size:0.82rem;color:var(--muted);">Loading...</span>
+        </div>
+        <div class="table-responsive">
+          <table class="db-table">
+            <thead>
+              <tr>
+                <th>PNR / Booking ID</th>
+                <th>Passenger Name</th>
+                <th>Train</th>
+                <th>Route</th>
+                <th>Allocated Seat</th>
+                <th>Class</th>
+                <th>Journey Date</th>
+                <th>Booking Status</th>
+                <th>Payment ID</th>
+                <th>Fare Amount</th>
+                <th>Payment Status</th>
+                <th style="text-align:center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="bookingsBody">
+              <tr>
+                <td colspan="12" style="text-align:center;padding:2rem;">Fetching database records...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    let lastTopId = null;
+    let autoRefreshTimer = null;
+    let searchDebounceTimer = null;
+
+    function showToast(msg, type = 'info') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = 'toast toast-' + type;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    // Check if admin is already verified in this browser session
+    function checkExistingSession() {
+      const savedKey = sessionStorage.getItem('train_admin_key');
+      if (savedKey) {
+        unlockDashboard(savedKey);
+      }
+    }
+
+    async function verifyAdmin() {
+      const pwd = document.getElementById('adminPasswordInput').value.trim();
+      const errEl = document.getElementById('authError');
+      errEl.textContent = '';
+
+      if (!pwd) {
+        errEl.textContent = 'Please enter the Administrator Password';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          sessionStorage.setItem('train_admin_key', pwd);
+          unlockDashboard(pwd);
+        } else {
+          errEl.textContent = data.error || 'Invalid Administrator Password';
+        }
+      } catch (e) {
+        errEl.textContent = 'Verification server error. Please try again.';
+      }
+    }
+
+    // Support Enter key on password input
+    document.getElementById('adminPasswordInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') verifyAdmin();
+    });
+
+    function unlockDashboard(key) {
+      document.getElementById('adminLockScreen').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'block';
+
+      fetchBookings();
+      if (!autoRefreshTimer) {
+        autoRefreshTimer = setInterval(fetchBookings, 3000);
+      }
+    }
+
+    function lockDashboard() {
+      sessionStorage.removeItem('train_admin_key');
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
+      document.getElementById('adminDashboard').style.display = 'none';
+      document.getElementById('adminLockScreen').style.display = 'block';
+      document.getElementById('adminPasswordInput').value = '';
+      document.getElementById('authError').textContent = '';
+      document.getElementById('adminPasswordInput').focus();
+    }
+
+    async function fetchBookings() {
+      const adminKey = sessionStorage.getItem('train_admin_key');
+      if (!adminKey) return;
+
+      const searchInput = document.getElementById('passengerSearchInput');
+      const searchTerm = (searchInput ? searchInput.value : '').trim();
+
+      try {
+        const url = searchTerm 
+          ? '/api/all-bookings?search=' + encodeURIComponent(searchTerm)
+          : '/api/all-bookings';
+
+        const res = await fetch(url, {
+          headers: { 'x-admin-key': adminKey }
+        });
+
+        if (res.status === 401) {
+          lockDashboard();
+          document.getElementById('authError').textContent = 'Session expired or invalid. Please re-authenticate.';
+          return;
+        }
+
+        const bookings = await res.json();
+
+        // Update search feedback & badges
+        const tableTitle = document.getElementById('tableTitleText');
+        const clearBtn = document.getElementById('clearSearchBtn');
+        const liveBadge = document.getElementById('liveSyncBadge');
+        const sqlPill = document.getElementById('searchSqlPill');
+
+        if (searchTerm) {
+          tableTitle.textContent = 'Filtered Bookings for Passenger: "' + searchTerm + '"';
+          clearBtn.style.display = 'inline-block';
+          sqlPill.textContent = 'SQL: WHERE p.Name LIKE \'%' + searchTerm + '%\'';
+          sqlPill.style.color = 'var(--c-gold)';
+          sqlPill.style.borderColor = 'var(--c-gold)';
+          if (liveBadge) liveBadge.style.display = 'none';
+        } else {
+          tableTitle.textContent = 'Recent Bookings & Seat Allocations';
+          clearBtn.style.display = 'none';
+          sqlPill.textContent = 'SQL: WHERE p.Name LIKE ?';
+          sqlPill.style.color = 'var(--c-cobalt)';
+          sqlPill.style.borderColor = 'rgba(47, 74, 102, 0.2)';
+          if (liveBadge) liveBadge.style.display = 'inline-flex';
+        }
+
+        // Update stats
+        document.getElementById('totalBookings').textContent = bookings.length;
+        const confirmed = bookings.filter(b => b.Booking_Status === 'Confirmed').length;
+        document.getElementById('confirmedBookings').textContent = confirmed;
+
+        const rev = bookings.reduce((sum, b) => sum + Number(b.Amount || 0), 0);
+        document.getElementById('totalRevenue').textContent = '₹' + rev.toLocaleString('en-IN');
+
+        if (bookings.length > 0) {
+          document.getElementById('latestBooking').textContent = '#' + String(bookings[0].Booking_ID).padStart(6, '0');
+        } else {
+          document.getElementById('latestBooking').textContent = '#0';
+        }
+        document.getElementById('bookingCount').textContent = bookings.length + (searchTerm ? ' Matching' : ' Total') + ' Records in Database';
+
+        // Render rows
+        const tbody = document.getElementById('bookingsBody');
+        if (bookings.length === 0) {
+          if (searchTerm) {
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2.5rem;color:var(--muted);">' +
+              '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 0.5rem;display:block;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>' +
+              'No passenger or bookings found matching query: <strong>"' + searchTerm + '"</strong><br>' +
+              '<small style="margin-top:0.35rem;display:inline-block;">Executed SQL query with LIKE filter against PASSENGER table.</small>' +
+              '</td></tr>';
+          } else {
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2.5rem;color:var(--muted);">' +
+              '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 0.5rem;display:block;"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>' +
+              'No bookings found in database.<br><small style="margin-top:0.35rem;display:inline-block;">Click "Add Demo Data" above to restore sample bookings, or book tickets from the passenger page.</small>' +
+              '</td></tr>';
+          }
+          return;
+        }
+
+        tbody.innerHTML = bookings.map(b => {
+          const isNew = lastTopId && b.Booking_ID > lastTopId;
+          const statusClass = b.Booking_Status.toLowerCase();
+          const payClass = b.Payment_Status === 'Completed' ? 'status-confirmed' : 'status-waiting';
+          const seatDisplay = b.Coach_No ? ('Coach ' + b.Coach_No + ' · #' + b.Seat_No) : 'WL (Waiting List)';
+
+          // Highlight matching search term in passenger name
+          let passengerNameHtml = b.Passenger_Name;
+          if (searchTerm) {
+            const regex = new RegExp('(' + searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            passengerNameHtml = b.Passenger_Name.replace(regex, '<mark style="background:rgba(185,148,93,0.3);color:inherit;padding:0 2px;border-radius:2px;">$1</mark>');
+          }
+
+          return '<tr class="' + (isNew ? 'highlight-new' : '') + '">' +
+            '<td><strong>#' + String(b.Booking_ID).padStart(6, '0') + '</strong></td>' +
+            '<td>' + passengerNameHtml + '<div style="font-size:0.75rem;color:var(--muted);">' + (b.Phone_no || '') + (b.Age ? ' · ' + b.Age + 'y' : '') + (b.Gender ? ' · ' + b.Gender : '') + '</div></td>' +
+            '<td>#' + b.Train_No + ' · ' + b.Train_Name + '</td>' +
+            '<td>' + b.Origin + ' → ' + b.Destination + '</td>' +
+            '<td><span style="font-weight:700;color:' + (b.Coach_No ? 'var(--c-gold)' : '#FBBF24') + ';">' + seatDisplay + '</span></td>' +
+            '<td><span class="board-type-badge" style="background:rgba(255,255,255,0.08);color:#F1F5F9;">' + b.Class + '</span></td>' +
+            '<td>' + new Date(b.Journey_Date).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) + '</td>' +
+            '<td><span class="status-badge status-' + statusClass + '">' + b.Booking_Status + '</span></td>' +
+            '<td>PAY-' + String(b.Payment_ID || b.Booking_ID).padStart(5, '0') + '</td>' +
+            '<td><strong>₹' + Number(b.Amount || 0).toLocaleString('en-IN') + '</strong></td>' +
+            '<td><span class="status-badge ' + payClass + '">' + b.Payment_Status + '</span></td>' +
+            '<td style="text-align:center;">' +
+              '<button class="btn-action-del" onclick="deleteBooking(' + b.Booking_ID + ')">Delete</button>' +
+            '</td>' +
+          '</tr>';
+        }).join('');
+
+        if (bookings.length > 0) {
+          lastTopId = bookings[0].Booking_ID;
+        }
+      } catch (e) {
+        console.error('Error fetching bookings:', e);
+      }
+    }
+
+    // Handle instant debounce typing search
+    function handleSearchInput() {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        fetchBookings();
+      }, 250);
+    }
+
+    // Clear search and reset view
+    function clearPassengerSearch() {
+      const input = document.getElementById('passengerSearchInput');
+      if (input) {
+        input.value = '';
+        fetchBookings();
+        input.focus();
+      }
+    }
+
+    // ── Delete a single booking ──
+    async function deleteBooking(bookingId) {
+      if (!confirm('Are you sure you want to delete Booking #' + bookingId + ' from the database?')) {
+        return;
+      }
+      const adminKey = sessionStorage.getItem('train_admin_key');
+      try {
+        const res = await fetch('/api/admin/booking/' + bookingId, {
+          method: 'DELETE',
+          headers: { 'x-admin-key': adminKey }
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          fetchBookings();
+        } else {
+          showToast(data.error || 'Failed to delete booking', 'error');
+        }
+      } catch (e) {
+        showToast('Error deleting booking', 'error');
+      }
+    }
+
+    // ── Delete all bookings ──
+    async function deleteAllBookings() {
+      if (!confirm('Warning: Are you sure you want to delete ALL bookings from the database?\nThis will clear the BOOKING, BOOKING_SEAT, and PAYMENT records.')) {
+        return;
+      }
+      const adminKey = sessionStorage.getItem('train_admin_key');
+      try {
+        const res = await fetch('/api/admin/bookings/all', {
+          method: 'DELETE',
+          headers: { 'x-admin-key': adminKey }
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          fetchBookings();
+        } else {
+          showToast(data.error || 'Failed to clear bookings', 'error');
+        }
+      } catch (e) {
+        showToast('Error clearing bookings', 'error');
+      }
+    }
+
+    // ── Add/restore demo data ──
+    async function addDemoData() {
+      const adminKey = sessionStorage.getItem('train_admin_key');
+      try {
+        const res = await fetch('/api/admin/demo-data', {
+          method: 'POST',
+          headers: { 'x-admin-key': adminKey }
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          fetchBookings();
+        } else {
+          showToast(data.error || 'Failed to insert demo data', 'error');
+        }
+      } catch (e) {
+        showToast('Error inserting demo data', 'error');
+      }
+    }
+
+    // Check existing session on load
+    checkExistingSession();
+  </script>
+</body>
+</html>

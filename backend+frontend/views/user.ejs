@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrainBook — Book Train Tickets</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    TrainBook
+  </a>
+    <nav class="nav">
+      <a href="/user" class="active">Book Tickets</a>
+      <a href="/timetable">Timetable</a>
+      <a href="/bookings">Live Database</a>
+      <a href="/employee">Employee Portal</a>
+    </nav>
+  </header>
+
+  <!-- Hero + Search -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Book Your Train Journey</h1>
+      <p>Search trains, compare fares, and book tickets instantly.</p>
+      <div class="search-card">
+        <div class="search-row">
+          <div class="form-group">
+            <label>From Station</label>
+            <select id="fromStation"><option value="">Select source</option></select>
+          </div>
+          <button class="swap-btn" id="swapBtn" title="Swap stations">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+          </button>
+          <div class="form-group">
+            <label>To Station</label>
+            <select id="toStation"><option value="">Select destination</option></select>
+          </div>
+          <div class="form-group">
+            <label>Journey Date</label>
+            <input type="date" id="journeyDate">
+          </div>
+          <button class="btn btn-primary" id="searchBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search Trains
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section class="results-section" id="resultsSection" style="display:none;">
+    <div class="results-header">
+      <h2>Available Trains</h2>
+      <span class="results-count" id="resultsCount"></span>
+    </div>
+    <div class="filter-bar" id="filterBar">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="Rajdhani">Rajdhani</button>
+      <button class="filter-btn" data-filter="Shatabdi">Shatabdi</button>
+      <button class="filter-btn" data-filter="Superfast">Superfast</button>
+      <button class="filter-btn" data-filter="Mail">Mail</button>
+      <button class="filter-btn" data-filter="Express">Express</button>
+      <button class="filter-btn" data-filter="Duronto">Duronto</button>
+    </div>
+    <div id="trainList"></div>
+    <div class="no-results" id="noResults" style="display:none;">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 0.75rem;display:block;"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="M8 19l-3 3"/><path d="M16 19l3 3"/><circle cx="8" cy="15" r="1"/><circle cx="16" cy="15" r="1"/></svg>
+      <h3>No trains found</h3>
+      <p>Try a different route or date.</p>
+    </div>
+  </section>
+
+  <!-- Loading -->
+  <div class="loading" id="loading" style="display:none;"><div class="spinner"></div></div>
+
+  <!-- Booking Modal -->
+  <div class="modal-overlay" id="bookingModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Book Ticket</h2>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <!-- Booking Form -->
+      <div class="modal-body" id="bookingForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Passenger Name</label>
+            <input type="text" id="pName" placeholder="Full name">
+          </div>
+          <div class="form-group">
+            <label>Age</label>
+            <input type="number" id="pAge" placeholder="Age" min="1" max="150">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="pGender">
+              <option value="">Select</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" id="pPhone" placeholder="10-digit phone" maxlength="15">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Aadhar Number</label>
+          <input type="text" id="pAadhar" placeholder="12-digit Aadhar" maxlength="12">
+        </div>
+        <div class="form-group">
+          <label>Travel Class</label>
+          <select id="pClass"></select>
+        </div>
+
+        <!-- Payment Method Section -->
+        <div class="payment-section">
+          <div class="payment-section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            Payment Options
+          </div>
+          <div class="payment-options-grid" id="paymentOptionsGrid">
+            <div class="payment-method-card selected" data-method="UPI">
+              <span class="method-badge">Popular</span>
+              <div class="method-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
+              <div class="method-name">UPI</div>
+            </div>
+            <div class="payment-method-card" data-method="Card">
+              <div class="method-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              </div>
+              <div class="method-name">Credit/Debit</div>
+            </div>
+            <div class="payment-method-card" data-method="NetBanking">
+              <div class="method-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2L2 7h20L12 2z"/></svg>
+              </div>
+              <div class="method-name">Net Banking</div>
+            </div>
+            <div class="payment-method-card" data-method="Wallet">
+              <div class="method-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>
+              </div>
+              <div class="method-name">Wallets</div>
+            </div>
+            <div class="payment-method-card" data-method="Counter">
+              <div class="method-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+              </div>
+              <div class="method-name">Pay at Counter</div>
+            </div>
+          </div>
+
+          <!-- Dynamic Payment Details Panels -->
+          <!-- 1. UPI Panel -->
+          <div class="payment-details-panel" id="panelUPI">
+            <label style="font-size:0.8rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:0.4rem;">ENTER UPI ID / VPA</label>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+              <input type="text" id="upiId" placeholder="e.g. yourname@okhdfcbank" style="flex:1;padding:0.6rem 0.8rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;">
+            </div>
+            <div class="upi-apps-row" style="margin-top:0.6rem;">
+              <span class="upi-app-pill active" onclick="setUpiSuffix('@okhdfcbank')">Google Pay</span>
+              <span class="upi-app-pill" onclick="setUpiSuffix('@ybl')">PhonePe</span>
+              <span class="upi-app-pill" onclick="setUpiSuffix('@paytm')">Paytm</span>
+              <span class="upi-app-pill" onclick="setUpiSuffix('@upi')">BHIM</span>
+            </div>
+          </div>
+
+          <!-- 2. Card Panel -->
+          <div class="payment-details-panel" id="panelCard" style="display:none;">
+            <div class="form-group" style="margin-bottom:0.75rem;">
+              <label>Card Number</label>
+              <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19">
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="margin-bottom:0.75rem;">
+                <label>Expiry Date</label>
+                <input type="text" id="cardExpiry" placeholder="MM/YY" maxlength="5">
+              </div>
+              <div class="form-group" style="margin-bottom:0.75rem;">
+                <label>CVV</label>
+                <input type="password" id="cardCvv" placeholder="123" maxlength="3">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label>Name on Card</label>
+              <input type="text" id="cardName" placeholder="Cardholder full name">
+            </div>
+          </div>
+
+          <!-- 3. Net Banking Panel -->
+          <div class="payment-details-panel" id="panelNetBanking" style="display:none;">
+            <label style="font-size:0.8rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:0.4rem;">SELECT YOUR BANK</label>
+            <select id="bankSelect" style="width:100%;padding:0.65rem 0.8rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;">
+              <option value="SBI">State Bank of India (SBI)</option>
+              <option value="HDFC">HDFC Bank</option>
+              <option value="ICICI">ICICI Bank</option>
+              <option value="AXIS">Axis Bank</option>
+              <option value="PNB">Punjab National Bank (PNB)</option>
+              <option value="KOTAK">Kotak Mahindra Bank</option>
+              <option value="BOB">Bank of Baroda</option>
+            </select>
+          </div>
+
+          <!-- 4. Wallets Panel -->
+          <div class="payment-details-panel" id="panelWallet" style="display:none;">
+            <label style="font-size:0.8rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:0.4rem;">SELECT DIGITAL WALLET</label>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.3rem;">
+              <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer;">
+                <input type="radio" name="walletChoice" value="Amazon Pay" checked> Amazon Pay
+              </label>
+              <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer;">
+                <input type="radio" name="walletChoice" value="Paytm Wallet"> Paytm Wallet
+              </label>
+              <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer;">
+                <input type="radio" name="walletChoice" value="Mobikwik"> Mobikwik
+              </label>
+            </div>
+          </div>
+
+          <!-- 5. Pay at Counter Panel -->
+          <div class="payment-details-panel" id="panelCounter" style="display:none;">
+            <div style="font-size:0.85rem;color:var(--text);line-height:1.5;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> <strong>Reservation Counter Payment:</strong> Your seat will be reserved and booking status marked as <em>Pending</em>. You can present your PNR at any Railway Reservation Counter to pay cash and collect your physical ticket.
+            </div>
+          </div>
+
+          <div class="payment-security-note">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 100% Safe &amp; Secure Payment | IRCTC-compliant Gateway
+          </div>
+        </div>
+
+        <div class="journey-summary" id="journeySummary"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" id="confirmBookBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Confirm &amp; Pay
+        </button>
+      </div>
+      <!-- Booking Confirmation -->
+      <div class="modal-body" id="bookingSuccess" style="display:none;">
+        <div class="booking-success">
+          <div class="success-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2>Booking Confirmed!</h2>
+          <div id="confirmationDetails"></div>
+          <div style="display:flex;gap:0.75rem;justify-content:center;margin-top:1.25rem;">
+            <button class="btn btn-outline" onclick="window.print()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print Ticket
+            </button>
+            <button class="btn btn-primary" onclick="document.getElementById('bookingModal').classList.remove('active');">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    let allTrains = [];
+    let selectedTrain = null;
+
+    // ── Toast ──
+    function showToast(msg, type = 'info') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = 'toast toast-' + type;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    // ── Format helpers ──
+    function fmtTime(t) {
+      if (!t) return '--:--';
+      return t.substring(0, 5);
+    }
+
+    function badgeClass(type) {
+      const t = type.toLowerCase().replace(/[^a-z]/g, '');
+      const map = { rajdhani:'rajdhani', shatabdi:'shatabdi', superfast:'superfast',
+                    mail:'mail', duronto:'duronto', express:'express', semihighspeed:'semi-highspeed' };
+      return 'badge-' + (map[t] || 'express');
+    }
+
+    function seatColorClass(n) {
+      if (n > 5) return 'seats-green';
+      if (n > 2) return 'seats-orange';
+      return 'seats-red';
+    }
+
+    // ── Load stations ──
+    async function loadStations() {
+      try {
+        const res = await fetch('/api/stations');
+        const stations = await res.json();
+        const from = document.getElementById('fromStation');
+        const to = document.getElementById('toStation');
+        stations.forEach(s => {
+          const o1 = new Option(s.Station_Name + ' (' + s.City + ')', s.Station_ID);
+          const o2 = new Option(s.Station_Name + ' (' + s.City + ')', s.Station_ID);
+          from.add(o1);
+          to.add(o2);
+        });
+      } catch (e) { showToast('Failed to load stations', 'error'); }
+    }
+
+    // ── Swap ──
+    document.getElementById('swapBtn').addEventListener('click', () => {
+      const f = document.getElementById('fromStation');
+      const t = document.getElementById('toStation');
+      const tmp = f.value;
+      f.value = t.value;
+      t.value = tmp;
+    });
+
+    // ── Search ──
+    document.getElementById('searchBtn').addEventListener('click', async () => {
+      const from = document.getElementById('fromStation').value;
+      const to = document.getElementById('toStation').value;
+      if (!from || !to) return showToast('Please select both stations', 'error');
+      if (from === to) return showToast('Source and destination must differ', 'error');
+
+      document.getElementById('loading').style.display = 'flex';
+      document.getElementById('resultsSection').style.display = 'none';
+
+      try {
+        const res = await fetch('/api/search-trains?from=' + from + '&to=' + to);
+        allTrains = await res.json();
+        renderTrains(allTrains);
+      } catch (e) {
+        showToast('Search failed', 'error');
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    });
+
+    // ── Render train cards ──
+    function renderTrains(trains) {
+      const sec = document.getElementById('resultsSection');
+      const list = document.getElementById('trainList');
+      const nr = document.getElementById('noResults');
+      sec.style.display = 'block';
+      document.getElementById('resultsCount').textContent = trains.length + ' train(s) found';
+
+      if (trains.length === 0) {
+        list.innerHTML = '';
+        nr.style.display = 'block';
+        return;
+      }
+      nr.style.display = 'none';
+
+      list.innerHTML = trains.map(tr => {
+        // Route dots
+        let routeHtml = '';
+        if (tr.stops && tr.stops.length) {
+          routeHtml = '<div class="route-stops">';
+          tr.stops.forEach((st, i) => {
+            if (i > 0) routeHtml += '<div class="route-line-seg"></div>';
+            const isSrcDst = st.Station_Name === tr.sourceStation || st.Station_Name === tr.destStation;
+            routeHtml += '<div class="route-dot ' + (isSrcDst ? '' : 'small') + '"></div>';
+            routeHtml += '<span class="route-stop-name">' + st.Station_Name + '</span>';
+            if (i < tr.stops.length - 1) routeHtml += '<div class="route-line-seg"></div>';
+          });
+          routeHtml += '</div>';
+        }
+
+        // Class chips
+        let classHtml = '<div class="class-pricing">';
+        if (tr.classes && tr.classes.length) {
+          tr.classes.forEach(c => {
+            classHtml += '<div class="class-chip" data-class="' + c.class + '" data-fare="' + c.fare + '">' +
+              '<span class="class-name">' + c.class + '</span>' +
+              '<span class="class-fare">₹' + c.fare.toLocaleString() + '</span>' +
+              '<span class="class-seats ' + seatColorClass(c.available) + '">' + c.available + ' seat(s)</span>' +
+              '</div>';
+          });
+        } else {
+          classHtml += '<div class="class-chip"><span class="class-name">GEN</span><span class="class-fare">₹250</span><span class="class-seats seats-green">Available</span></div>';
+        }
+        classHtml += '</div>';
+
+        return '<div class="train-card" data-type="' + tr.trainType + '">' +
+          '<div class="train-card-header">' +
+            '<div class="train-info"><h3>' + tr.trainName + '</h3><span class="train-number">#' + tr.trainNo + '</span></div>' +
+            '<span class="train-type-badge ' + badgeClass(tr.trainType) + '">' + tr.trainType + '</span>' +
+          '</div>' +
+          '<div class="train-card-body">' +
+            '<div class="time-row">' +
+              '<div class="time-block"><div class="time">' + fmtTime(tr.departureTime) + '</div><div class="station-name">' + tr.sourceStation + '</div></div>' +
+              '<div class="duration-line"><div class="line"></div><span class="duration-text">Direct</span></div>' +
+              '<div class="time-block"><div class="time">' + fmtTime(tr.arrivalTime) + '</div><div class="station-name">' + tr.destStation + '</div></div>' +
+            '</div>' +
+            routeHtml +
+            classHtml +
+          '</div>' +
+          '<div class="train-card-footer">' +
+            '<button class="btn btn-primary" onclick="openBooking(' + tr.trainNo + ')">Book Now →</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ── Filters ──
+    document.getElementById('filterBar').addEventListener('click', e => {
+      if (!e.target.classList.contains('filter-btn')) return;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      const f = e.target.dataset.filter;
+      if (f === 'all') return renderTrains(allTrains);
+      renderTrains(allTrains.filter(t => t.trainType === f));
+    });
+
+    // ── Booking modal ──
+    function openBooking(trainNo) {
+      selectedTrain = allTrains.find(t => t.trainNo === trainNo);
+      if (!selectedTrain) return;
+
+      document.getElementById('bookingForm').style.display = 'block';
+      document.getElementById('bookingSuccess').style.display = 'none';
+
+      // populate class dropdown
+      const sel = document.getElementById('pClass');
+      sel.innerHTML = '';
+      if (selectedTrain.classes && selectedTrain.classes.length) {
+        selectedTrain.classes.forEach(c => {
+          sel.add(new Option(c.class + ' — ₹' + c.fare.toLocaleString() + ' (' + c.available + ' seats)', c.class));
+        });
+      } else {
+        sel.add(new Option('GEN — ₹250', 'GEN'));
+      }
+      updateSummary();
+      sel.addEventListener('change', updateSummary);
+
+      document.getElementById('bookingModal').classList.add('active');
+    }
+
+    let currentPaymentMethod = 'UPI';
+
+    // ── Payment method selection ──
+    document.querySelectorAll('.payment-method-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.payment-method-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        currentPaymentMethod = card.dataset.method;
+
+        // Hide all panels
+        ['panelUPI', 'panelCard', 'panelNetBanking', 'panelWallet', 'panelCounter'].forEach(id => {
+          document.getElementById(id).style.display = 'none';
+        });
+
+        // Show active panel
+        const panelMap = {
+          'UPI': 'panelUPI',
+          'Card': 'panelCard',
+          'NetBanking': 'panelNetBanking',
+          'Wallet': 'panelWallet',
+          'Counter': 'panelCounter'
+        };
+        if (panelMap[currentPaymentMethod]) {
+          document.getElementById(panelMap[currentPaymentMethod]).style.display = 'block';
+        }
+        updateSummary();
+      });
+    });
+
+    function setUpiSuffix(suffix) {
+      document.querySelectorAll('.upi-app-pill').forEach(p => p.classList.remove('active'));
+      event.target.classList.add('active');
+      const input = document.getElementById('upiId');
+      const current = input.value.split('@')[0] || 'passenger';
+      input.value = current + suffix;
+    }
+
+    // Auto-format card number
+    const cardInput = document.getElementById('cardNumber');
+    if (cardInput) {
+      cardInput.addEventListener('input', (e) => {
+        let val = e.target.value.replace(/\D/g, '').substring(0, 16);
+        let formatted = val.match(/.{1,4}/g)?.join(' ') || val;
+        e.target.value = formatted;
+      });
+    }
+
+    function updateSummary() {
+      if (!selectedTrain) return;
+      const cls = document.getElementById('pClass').value;
+      const ci = selectedTrain.classes ? selectedTrain.classes.find(c => c.class === cls) : null;
+      const fare = ci ? ci.fare : 250;
+      const date = document.getElementById('journeyDate').value || 'Not selected';
+
+      const methodNames = {
+        'UPI': 'UPI (Instant)',
+        'Card': 'Credit / Debit Card',
+        'NetBanking': 'Net Banking',
+        'Wallet': 'Digital Wallet',
+        'Counter': 'Pay at Station Counter'
+      };
+
+      document.getElementById('journeySummary').innerHTML =
+        '<h4>Journey & Payment Summary</h4>' +
+        '<div class="summary-row"><span class="label">Train</span><span class="value">' + selectedTrain.trainName + ' (#' + selectedTrain.trainNo + ')</span></div>' +
+        '<div class="summary-row"><span class="label">Route</span><span class="value">' + selectedTrain.sourceStation + ' → ' + selectedTrain.destStation + '</span></div>' +
+        '<div class="summary-row"><span class="label">Departure</span><span class="value">' + fmtTime(selectedTrain.departureTime) + '</span></div>' +
+        '<div class="summary-row"><span class="label">Journey Date</span><span class="value">' + date + '</span></div>' +
+        '<div class="summary-row"><span class="label">Travel Class</span><span class="value">' + cls + '</span></div>' +
+        '<div class="summary-row"><span class="label">Base Fare</span><span class="value">₹' + fare.toLocaleString() + '</span></div>' +
+        '<div class="summary-row"><span class="label">Payment Gateway Fee</span><span class="value" style="color:var(--success);">FREE (₹0)</span></div>' +
+        '<div class="summary-row"><span class="label">Payment Mode</span><span class="value">' + (methodNames[currentPaymentMethod] || currentPaymentMethod) + '</span></div>' +
+        '<div class="summary-row" style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px dashed var(--border);"><span class="label" style="font-weight:700;">Total Payable</span><span class="value fare-total">₹' + fare.toLocaleString() + '</span></div>';
+
+      const btn = document.getElementById('confirmBookBtn');
+      if (currentPaymentMethod === 'Counter') {
+        btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> Reserve & Pay ₹' + fare.toLocaleString() + ' at Counter';
+      } else {
+        btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Pay ₹' + fare.toLocaleString() + ' via ' + currentPaymentMethod;
+      }
+    }
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('bookingModal').classList.remove('active');
+    });
+
+    // ── Confirm booking ──
+    document.getElementById('confirmBookBtn').addEventListener('click', async () => {
+      const name = document.getElementById('pName').value.trim();
+      const age = document.getElementById('pAge').value;
+      const gender = document.getElementById('pGender').value;
+      const phone = document.getElementById('pPhone').value.trim();
+      const aadhar = document.getElementById('pAadhar').value.trim();
+      const seatClass = document.getElementById('pClass').value;
+      const journeyDate = document.getElementById('journeyDate').value;
+
+      if (!name || !age || !gender || !phone || !aadhar) {
+        return showToast('Please fill all passenger details', 'error');
+      }
+      if (aadhar.length !== 12) return showToast('Aadhar must be exactly 12 digits', 'error');
+      if (!journeyDate) return showToast('Please select journey date', 'error');
+
+      // Payment validation checks
+      if (currentPaymentMethod === 'Card') {
+        const cNum = document.getElementById('cardNumber').value.replace(/\s/g, '');
+        if (cNum.length < 15) return showToast('Please enter a valid 16-digit Card Number', 'error');
+      }
+
+      const from = document.getElementById('fromStation').value;
+      const to = document.getElementById('toStation').value;
+      const btn = document.getElementById('confirmBookBtn');
+      const origText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = 'Processing Payment...';
+
+      try {
+        const res = await fetch('/api/book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            passengerName: name, age, gender, phone, aadhar,
+            trainNo: selectedTrain.trainNo,
+            startStation: from, endStation: to,
+            journeyDate, seatClass,
+            paymentMethod: currentPaymentMethod
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('bookingForm').style.display = 'none';
+          document.getElementById('bookingSuccess').style.display = 'block';
+          const b = data.booking;
+
+          document.getElementById('confirmationDetails').innerHTML =
+            '<div class="ticket-pnr-banner">' +
+              '<div class="ticket-pnr-label">Railway PNR / Booking ID</div>' +
+              '<div class="ticket-pnr-value">' + String(b.bookingId).padStart(6, '0') + '</div>' +
+            '</div>' +
+            '<div class="journey-summary">' +
+              '<div class="summary-row"><span class="label">Passenger</span><span class="value">' + b.passengerName + '</span></div>' +
+              '<div class="summary-row"><span class="label">Train</span><span class="value">#' + b.trainNo + ' (' + selectedTrain.trainName + ')</span></div>' +
+              '<div class="summary-row"><span class="label">Class</span><span class="value">' + b.class + '</span></div>' +
+              '<div class="summary-row"><span class="label">Booking Status</span><span class="value"><span class="status-badge status-' + b.status.toLowerCase() + '">' + b.status + '</span></span></div>' +
+              (b.seat ? '<div class="summary-row"><span class="label">Allocated Seat</span><span class="value" style="color:var(--c-gold);font-weight:700;">Coach ' + b.seat.Coach_No + ' · Seat #' + b.seat.Seat_No + '</span></div>' : '<div class="summary-row"><span class="label">Seat</span><span class="value" style="color:var(--c-gold);">WL (Waiting List)</span></div>') +
+              '<div class="summary-row" style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px dashed var(--border);"><span class="label">Payment ID</span><span class="value">PAY-' + String(b.paymentId || b.bookingId).padStart(5, '0') + '</span></div>' +
+              '<div class="summary-row"><span class="label">Payment Mode</span><span class="value">' + b.paymentMethod + '</span></div>' +
+              '<div class="summary-row"><span class="label">Payment Status</span><span class="value"><span class="status-badge status-' + (b.paymentStatus === 'Completed' ? 'confirmed' : 'waiting') + '">' + b.paymentStatus + '</span></span></div>' +
+              '<div class="summary-row"><span class="label">Total Fare Paid</span><span class="value fare-total">₹' + b.fare.toLocaleString() + '</span></div>' +
+            '</div>';
+          showToast('Payment successful & Ticket booked!', 'success');
+        } else {
+          showToast(data.error || 'Booking failed', 'error');
+        }
+      } catch (e) {
+        showToast('Booking failed: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
+    });
+
+    // ── Init ──
+    loadStations();
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('journeyDate').value = today;
+  </script>
+</body>
+</html>
